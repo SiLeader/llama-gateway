@@ -15,8 +15,12 @@ func testMapper() *model.Mapper {
 	}, "/models")
 }
 
+func testDownloader() *model.Downloader {
+	return model.NewDownloader([]model.Info{}, "/models", "", nil, nil)
+}
+
 func TestNewProxy_ValidURL(t *testing.T) {
-	p := NewProxy("http://localhost:8081", testMapper())
+	p := NewProxy("http://localhost:8081", testMapper(), testDownloader())
 	if p == nil {
 		t.Fatal("expected non-nil Proxy")
 	}
@@ -24,7 +28,7 @@ func TestNewProxy_ValidURL(t *testing.T) {
 
 func TestNewProxy_InvalidURL(t *testing.T) {
 	// url.Parse fails on strings containing control characters
-	p := NewProxy("http://[::1]:namedport", testMapper())
+	p := NewProxy("http://[::1]:namedport", testMapper(), testDownloader())
 	if p != nil {
 		t.Errorf("expected nil Proxy for invalid URL, got non-nil")
 	}
@@ -37,7 +41,7 @@ func TestServeHTTP(t *testing.T) {
 	}))
 	defer backend.Close()
 
-	p := NewProxy(backend.URL, testMapper())
+	p := NewProxy(backend.URL, testMapper(), testDownloader())
 	if p == nil {
 		t.Fatal("failed to create proxy")
 	}
@@ -71,7 +75,7 @@ func TestServeHTTP_HeaderForwarding(t *testing.T) {
 	}))
 	defer backend.Close()
 
-	p := NewProxy(backend.URL, testMapper())
+	p := NewProxy(backend.URL, testMapper(), testDownloader())
 	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
 	req.Header.Set(customHeader, customValue)
 	rec := httptest.NewRecorder()

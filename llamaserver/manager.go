@@ -82,7 +82,7 @@ func (m *Manager) run() {
 }
 
 func waitProcess(cmd *exec.Cmd, stopChan chan os.Signal) {
-	if cmd != nil {
+	if cmd != nil && cmd.ProcessState.Exited() {
 		if err := cmd.Wait(); err != nil {
 			slog.Error("Failed to wait llama server", "error", err)
 		}
@@ -94,7 +94,7 @@ func waitProcess(cmd *exec.Cmd, stopChan chan os.Signal) {
 }
 
 func stopProcess(cmd *exec.Cmd) {
-	if cmd != nil {
+	if cmd != nil && cmd.ProcessState.Exited() {
 		if err := cmd.Process.Signal(os.Signal(syscall.SIGTERM)); err != nil {
 			slog.Error("Send signal failed", "err", err)
 		}

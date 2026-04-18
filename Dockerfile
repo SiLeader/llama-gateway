@@ -6,7 +6,7 @@ RUN apk add --no-cache ca-certificates
 
 ENV CGO_ENABLED=0
 
-COPY ../.. .
+COPY . .
 
 RUN go build -o llama-gateway
 

@@ -71,23 +71,24 @@ func main() {
 	}
 	presetFile := fmt.Sprintf("%s/presets.ini", config.Directories.Config)
 
-	{
-		hfToken := loadHfConfig()
-		hfClient := huggingface.NewClient(hfToken)
-		downloader := NewModelDownloader(config.Models, config.Directories.Models, hfClient)
-		downloader.DownloadAll(presetFile)
-		slog.Info("Downloaded all models")
+	llamaServerPort := config.Listen.Port + 1
+	spawner := llamaserver.NewManager(config.Backend.LlamaServer, llamaServerPort, config.Directories.Models, presetFile)
+
+	hfToken := loadHfConfig()
+	hfClient := huggingface.NewClient(hfToken)
+	downloader := model.NewDownloader(config.Models, config.Directories.Models, presetFile, hfClient, spawner)
+	if err := downloader.DownloadAll(); err != nil {
+		panic(err)
 	}
+	slog.Info("Downloaded all models")
 
 	mapper := model.NewModelMapper(config.Models, config.Directories.Models)
 
-	llamaServerPort := config.Listen.Port + 1
-	spawner := llamaserver.NewManager(config.Backend.LlamaServer, llamaServerPort, config.Directories.Models, presetFile)
 	spawner.Start()
 	slog.Info("Started llama server", "port", llamaServerPort)
 
 	url := fmt.Sprintf("http://localhost:%d", llamaServerPort)
-	proxy := revproxy.NewProxy(url, mapper)
+	proxy := revproxy.NewProxy(url, mapper, downloader)
 
 	slog.Info("Starting reverse proxy", "url", url, "port", config.Listen.Port, "host", config.Listen.Host)
 	if err := http.ListenAndServe(fmt.Sprintf("%s:%d", config.Listen.Host, config.Listen.Port), accessLog(proxy)); err != nil {
