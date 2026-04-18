@@ -32,7 +32,7 @@ func (c *Client) downloadWithVerify(ctx context.Context, repo, filename, destPat
 		return err
 	}
 
-	url := fmt.Sprintf("https://huggingface.co/%s/resolve/main/%s", repo, filename)
+	url := fmt.Sprintf("%s/%s/resolve/main/%s", c.baseURL, repo, filename)
 	slog.DebugContext(ctx, "Downloading", "url", url)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -42,7 +42,7 @@ func (c *Client) downloadWithVerify(ctx context.Context, repo, filename, destPat
 		req.Header.Set("Authorization", "Bearer "+c.token)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return err
 	}

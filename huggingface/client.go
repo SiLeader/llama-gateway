@@ -4,14 +4,21 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/http"
 )
 
 type Client struct {
-	token string
+	token      string
+	baseURL    string
+	httpClient *http.Client
 }
 
 func NewClient(token string) *Client {
-	return &Client{token: token}
+	return &Client{
+		token:      token,
+		baseURL:    "https://huggingface.co",
+		httpClient: http.DefaultClient,
+	}
 }
 
 func (c *Client) Download(ctx context.Context, repo, filename, destPath string) error {

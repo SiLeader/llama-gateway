@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
@@ -49,8 +50,7 @@ func accessLog(next http.Handler) http.Handler {
 
 		// nginx の combined log に近い形式
 		// $remote_addr - - [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent"
-		slog.InfoContext(
-			r.Context(),
+		msg := fmt.Sprintf(
 			`%s - - [%s] "%s %s %s" %d %d %q %q %v`,
 			host,
 			time.Now().Format(time.RFC3339),
@@ -63,5 +63,6 @@ func accessLog(next http.Handler) http.Handler {
 			r.UserAgent(),
 			time.Since(start),
 		)
+		slog.InfoContext(r.Context(), msg)
 	})
 }

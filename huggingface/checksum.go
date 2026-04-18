@@ -22,7 +22,7 @@ type modelInfo struct {
 }
 
 func (c *Client) fetchFileInfo(ctx context.Context, repo, filename string) (*fileInfo, error) {
-	url := fmt.Sprintf("https://huggingface.co/api/models/%s/revision/main", repo)
+	url := fmt.Sprintf("%s/api/models/%s/revision/main", c.baseURL, repo)
 	slog.DebugContext(ctx, "Fetching file info", "url", url)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -32,7 +32,7 @@ func (c *Client) fetchFileInfo(ctx context.Context, repo, filename string) (*fil
 		req.Header.Set("Authorization", "Bearer "+c.token)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
