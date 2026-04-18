@@ -14,31 +14,6 @@ type Info struct {
 	Context *int   `yaml:"context,omitempty" json:"context,omitempty"`
 }
 
-type Mapper struct {
-	destination string
-	mapping     map[string]Info
-}
-
-func NewModelMapper(models []Info, destination string) *Mapper {
-	mapping := map[string]Info{}
-	for _, model := range models {
-		mapping[model.Name] = model
-	}
-	return &Mapper{
-		destination: destination,
-		mapping:     mapping,
-	}
-}
-
-func (m *Mapper) UseModel(model string) *string {
-	modelInfo, ok := m.mapping[model]
-	if !ok {
-		return nil
-	}
-	dest := modelInfo.DestinationPath(m.destination)
-	return &dest
-}
-
 func (i Info) DestinationPath(destination string) string {
 	return path.Join(destination, i.File)
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/sileader/llama-gateway/huggingface"
 	"github.com/sileader/llama-gateway/llamaserver"
+	"golang.org/x/sync/errgroup"
 )
 
 type Downloader struct {
@@ -62,41 +63,22 @@ func (d *Downloader) DownloadAll() error {
 	d.models.m.Lock()
 	defer d.models.m.Unlock()
 
-	presets := map[string]llamaserver.Preset{}
-
-	errChan := make(chan error, len(d.models.mapping))
-	wg := sync.WaitGroup{}
+	eg := errgroup.Group{}
 	for _, m := range d.models.mapping {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		eg.Go(func() error {
 			slog.InfoContext(ctx, "Downloading model", "model", m.Id)
-			var err error
-			if err = m.Download(ctx, d.destination, d.client); err != nil {
-				errChan <- err
-			}
-		}()
+			return m.Download(ctx, d.destination, d.client)
+		})
 	}
-	wg.Wait()
-
-	select {
-	case err := <-errChan:
+	if err := eg.Wait(); err != nil {
 		return err
-	default:
 	}
-
-	ps := llamaserver.Presets{
-		Global: nil,
-		Models: presets,
-	}
-
 	if err := os.MkdirAll(filepath.Dir(d.presetFile), 0755); err != nil {
 		return err
 	}
-	if err := os.WriteFile(d.presetFile, []byte(ps.String()), 0644); err != nil {
+	if err := os.WriteFile(d.presetFile, []byte(d.models.presets.String()), 0644); err != nil {
 		return err
 	}
-	d.models.presets = ps
 	return nil
 }
 

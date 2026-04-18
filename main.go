@@ -29,6 +29,7 @@ type listen struct {
 }
 
 type backend struct {
+	Port        int                `yaml:"port"`
 	LlamaServer llamaserver.Config `yaml:"llamaServer"`
 }
 
@@ -72,6 +73,9 @@ func main() {
 	presetFile := fmt.Sprintf("%s/presets.ini", config.Directories.Config)
 
 	llamaServerPort := config.Listen.Port + 1
+	if config.Backend.Port != 0 {
+		llamaServerPort = config.Backend.Port
+	}
 	spawner := llamaserver.NewManager(config.Backend.LlamaServer, llamaServerPort, config.Directories.Models, presetFile)
 
 	hfToken := loadHfConfig()
@@ -82,13 +86,11 @@ func main() {
 	}
 	slog.Info("Downloaded all models")
 
-	mapper := model.NewModelMapper(config.Models, config.Directories.Models)
-
 	spawner.Start()
 	slog.Info("Started llama server", "port", llamaServerPort)
 
 	url := fmt.Sprintf("http://localhost:%d", llamaServerPort)
-	proxy := revproxy.NewProxy(url, mapper, downloader)
+	proxy := revproxy.NewProxy(url, downloader)
 
 	slog.Info("Starting reverse proxy", "url", url, "port", config.Listen.Port, "host", config.Listen.Host)
 	if err := http.ListenAndServe(fmt.Sprintf("%s:%d", config.Listen.Host, config.Listen.Port), accessLog(proxy)); err != nil {

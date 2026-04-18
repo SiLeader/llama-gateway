@@ -75,6 +75,7 @@ func (m *Manager) run() {
 			slog.Error("Failed to start llama server after 5 retries", "error", err)
 			return
 		}
+		retry = 0
 		slog.Info("Started llama server", "port", m.port)
 		go waitProcess(cmd, m.spawnChan)
 	}
@@ -82,7 +83,7 @@ func (m *Manager) run() {
 }
 
 func waitProcess(cmd *exec.Cmd, stopChan chan os.Signal) {
-	if cmd != nil && cmd.ProcessState.Exited() {
+	if cmd != nil && cmd.ProcessState == nil {
 		if err := cmd.Wait(); err != nil {
 			slog.Error("Failed to wait llama server", "error", err)
 		}
@@ -94,7 +95,7 @@ func waitProcess(cmd *exec.Cmd, stopChan chan os.Signal) {
 }
 
 func stopProcess(cmd *exec.Cmd) {
-	if cmd != nil && cmd.ProcessState.Exited() {
+	if cmd != nil && cmd.ProcessState == nil {
 		if err := cmd.Process.Signal(os.Signal(syscall.SIGTERM)); err != nil {
 			slog.Error("Send signal failed", "err", err)
 		}

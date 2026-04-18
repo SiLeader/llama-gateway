@@ -53,7 +53,7 @@ func accessLog(next http.Handler) http.Handler {
 		msg := fmt.Sprintf(
 			`%s - - [%s] "%s %s %s" %d %d %q %q %v`,
 			host,
-			time.Now().Format(time.RFC3339),
+			start.Format(time.RFC3339),
 			r.Method,
 			r.URL.RequestURI(),
 			r.Proto,

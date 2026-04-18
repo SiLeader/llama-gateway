@@ -9,18 +9,12 @@ import (
 	"github.com/sileader/llama-gateway/model"
 )
 
-func testMapper() *model.Mapper {
-	return model.NewModelMapper([]model.Info{
-		{Name: "test-model", Id: "org/test", File: "test.gguf"},
-	}, "/models")
-}
-
 func testDownloader() *model.Downloader {
 	return model.NewDownloader([]model.Info{}, "/models", "", nil, nil)
 }
 
 func TestNewProxy_ValidURL(t *testing.T) {
-	p := NewProxy("http://localhost:8081", testMapper(), testDownloader())
+	p := NewProxy("http://localhost:8081", testDownloader())
 	if p == nil {
 		t.Fatal("expected non-nil Proxy")
 	}
@@ -28,7 +22,7 @@ func TestNewProxy_ValidURL(t *testing.T) {
 
 func TestNewProxy_InvalidURL(t *testing.T) {
 	// url.Parse fails on strings containing control characters
-	p := NewProxy("http://[::1]:namedport", testMapper(), testDownloader())
+	p := NewProxy("http://[::1]:namedport", testDownloader())
 	if p != nil {
 		t.Errorf("expected nil Proxy for invalid URL, got non-nil")
 	}
@@ -41,7 +35,7 @@ func TestServeHTTP(t *testing.T) {
 	}))
 	defer backend.Close()
 
-	p := NewProxy(backend.URL, testMapper(), testDownloader())
+	p := NewProxy(backend.URL, testDownloader())
 	if p == nil {
 		t.Fatal("failed to create proxy")
 	}
@@ -75,7 +69,7 @@ func TestServeHTTP_HeaderForwarding(t *testing.T) {
 	}))
 	defer backend.Close()
 
-	p := NewProxy(backend.URL, testMapper(), testDownloader())
+	p := NewProxy(backend.URL, testDownloader())
 	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
 	req.Header.Set(customHeader, customValue)
 	rec := httptest.NewRecorder()

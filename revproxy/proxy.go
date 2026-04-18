@@ -11,12 +11,11 @@ import (
 
 type Proxy struct {
 	target  *url.URL
-	mapper  *model.Mapper
 	reverse *httputil.ReverseProxy
 	dl      *model.Downloader
 }
 
-func NewProxy(targetURL string, mapper *model.Mapper, dl *model.Downloader) *Proxy {
+func NewProxy(targetURL string, dl *model.Downloader) *Proxy {
 	target, err := url.Parse(targetURL)
 	if err != nil {
 		return nil
@@ -26,7 +25,6 @@ func NewProxy(targetURL string, mapper *model.Mapper, dl *model.Downloader) *Pro
 	}
 	return &Proxy{
 		target:  target,
-		mapper:  mapper,
 		reverse: httputil.NewSingleHostReverseProxy(target),
 		dl:      dl,
 	}
