@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path"
 	"syscall"
 	"time"
@@ -16,7 +17,7 @@ type Manager struct {
 	presetFile string
 	args       []string
 	port       string
-	spawnChan  chan bool
+	spawnChan  chan os.Signal
 }
 
 func NewManager(config Config, port int, modelsDir string, presetFile string) *Manager {
@@ -26,12 +27,12 @@ func NewManager(config Config, port int, modelsDir string, presetFile string) *M
 		presetFile: presetFile,
 		args:       config.Args,
 		port:       fmt.Sprintf("%d", port),
-		spawnChan:  make(chan bool),
+		spawnChan:  make(chan os.Signal, 1),
 	}
 }
 
 func (m *Manager) ReloadServer() {
-	m.spawnChan <- true
+	m.spawnChan <- syscall.SIGHUP
 }
 
 func (m *Manager) Close() {
@@ -40,14 +41,21 @@ func (m *Manager) Close() {
 
 func (m *Manager) Start() {
 	go m.run()
-	m.spawnChan <- true
+	m.spawnChan <- syscall.SIGHUP
 }
 
 func (m *Manager) run() {
 	var cmd *exec.Cmd = nil
 	retry := 0
-	for range m.spawnChan {
+
+	signal.Notify(m.spawnChan, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
+	for sig := range m.spawnChan {
 		stopProcess(cmd)
+
+		if sig == syscall.SIGINT || sig == syscall.SIGTERM {
+			slog.Info("Received signal to stop llama server", "signal", sig)
+			return
+		}
 
 		cmd = exec.Command(m.executable, "--models-dir", m.modelsDir, "--models-preset", m.presetFile, "--port", m.port)
 		cmd.Stdout = os.Stdout
@@ -73,7 +81,7 @@ func (m *Manager) run() {
 	stopProcess(cmd)
 }
 
-func waitProcess(cmd *exec.Cmd, stopChan chan bool) {
+func waitProcess(cmd *exec.Cmd, stopChan chan os.Signal) {
 	if cmd != nil {
 		if err := cmd.Wait(); err != nil {
 			slog.Error("Failed to wait llama server", "error", err)
@@ -82,16 +90,16 @@ func waitProcess(cmd *exec.Cmd, stopChan chan bool) {
 			slog.Error("llama server exited with non-zero exit code", "exit_code", cmd.ProcessState.ExitCode())
 		}
 	}
-	stopChan <- true
+	stopChan <- syscall.SIGHUP
 }
 
 func stopProcess(cmd *exec.Cmd) {
 	if cmd != nil {
 		if err := cmd.Process.Signal(os.Signal(syscall.SIGTERM)); err != nil {
-			panic(err)
+			slog.Error("Send signal failed", "err", err)
 		}
 		if err := cmd.Wait(); err != nil {
-			panic(err)
+			slog.Error("Failed to wait llama server", "error", err)
 		}
 	}
 }

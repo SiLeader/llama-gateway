@@ -28,10 +28,6 @@ func NewProxy(targetURL string, mapper *model.Mapper) *Proxy {
 }
 
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	//if returned := p.rewriteEntry(w, r); returned {
-	//	slog.DebugContext(r.Context(), "Rewriting request", "url", r.URL)
-	//	return
-	//}
 	slog.DebugContext(r.Context(), "Reverse proxying request", "url", r.URL)
 	p.reverse.ServeHTTP(w, r)
 }

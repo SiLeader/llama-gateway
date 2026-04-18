@@ -1,7 +1,7 @@
 package main
 
 import (
-	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"time"
@@ -49,7 +49,8 @@ func accessLog(next http.Handler) http.Handler {
 
 		// nginx の combined log に近い形式
 		// $remote_addr - - [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent"
-		log.Printf(
+		slog.InfoContext(
+			r.Context(),
 			`%s - - [%s] "%s %s %s" %d %d %q %q %v`,
 			host,
 			time.Now().Format(time.RFC3339),

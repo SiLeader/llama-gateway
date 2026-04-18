@@ -24,7 +24,10 @@ type modelInfo struct {
 func (c *Client) fetchFileInfo(ctx context.Context, repo, filename string) (*fileInfo, error) {
 	url := fmt.Sprintf("https://huggingface.co/api/models/%s/revision/main", repo)
 	slog.DebugContext(ctx, "Fetching file info", "url", url)
-	req, _ := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %v", err)
+	}
 	if c.token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.token)
 	}
@@ -34,6 +37,9 @@ func (c *Client) fetchFileInfo(ctx context.Context, repo, filename string) (*fil
 		return nil, err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to fetch file info: %s", resp.Status)
+	}
 
 	var info modelInfo
 	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {

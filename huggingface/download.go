@@ -34,7 +34,10 @@ func (c *Client) downloadWithVerify(ctx context.Context, repo, filename, destPat
 
 	url := fmt.Sprintf("https://huggingface.co/%s/resolve/main/%s", repo, filename)
 	slog.DebugContext(ctx, "Downloading", "url", url)
-	req, _ := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %v", err)
+	}
 	if c.token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.token)
 	}
@@ -44,6 +47,9 @@ func (c *Client) downloadWithVerify(ctx context.Context, repo, filename, destPat
 		return err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to download file: %s", resp.Status)
+	}
 
 	tmp := destPath + ".llamagatewaypartialdownload"
 	slog.DebugContext(ctx, "Writing to", "tmp", tmp)

@@ -18,14 +18,14 @@ import (
 
 type config struct {
 	Listen      listen       `yaml:"listen"`
-	Models      []model.Info `yaml:"mapping"`
+	Models      []model.Info `yaml:"models"`
 	Backend     backend      `yaml:"backend"`
 	Directories directories  `yaml:"directories"`
 }
 
 type listen struct {
-	Host string `yaml:"host" default:"0.0.0.0"`
-	Port int    `yaml:"port" default:"8080"`
+	Host string `yaml:"host"`
+	Port int    `yaml:"port"`
 }
 
 type backend struct {
@@ -33,8 +33,8 @@ type backend struct {
 }
 
 type directories struct {
-	Models string `yaml:"models" default:"/models"`
-	Config string `yaml:"config" default:"/config"`
+	Models string `yaml:"models"`
+	Config string `yaml:"config"`
 }
 
 func main() {
@@ -63,6 +63,12 @@ func main() {
 	}
 
 	config := loadGlobalConfig(*configFile)
+	if len(config.Listen.Host) == 0 {
+		config.Listen.Host = "0.0.0.0"
+	}
+	if config.Listen.Port == 0 {
+		config.Listen.Port = 8080
+	}
 	presetFile := fmt.Sprintf("%s/presets.ini", config.Directories.Config)
 
 	{
@@ -84,7 +90,9 @@ func main() {
 	proxy := revproxy.NewProxy(url, mapper)
 
 	slog.Info("Starting reverse proxy", "url", url, "port", config.Listen.Port, "host", config.Listen.Host)
-	http.ListenAndServe(fmt.Sprintf("%s:%d", config.Listen.Host, config.Listen.Port), accessLog(proxy))
+	if err := http.ListenAndServe(fmt.Sprintf("%s:%d", config.Listen.Host, config.Listen.Port), accessLog(proxy)); err != nil {
+		panic(err)
+	}
 }
 
 func loadGlobalConfig(path string) (config config) {
