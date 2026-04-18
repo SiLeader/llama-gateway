@@ -1,0 +1,23 @@
+listen:
+  port: 8080
+  host: 0.0.0.0
+
+models:
+#  - name: gemma4-e4b
+#    id: ggml-org/gemma-4-E4B-it-GGUF
+#    file: gemma-4-E4B-it-Q4_K_M.gguf
+#  - name: embeddinggemma-300m
+#    id: ggml-org/embeddinggemma-300M-qat-q4_0-GGUF
+#    file:  embeddinggemma-300M-qat-Q4_0.gguf
+  - name: gemma3-270m
+    id: ggml-org/gemma-3-270m-it-qat-GGUF
+    file:  gemma-3-270m-it-qat-Q4_0.gguf
+    context: 4096
+
+directories:
+  models: /var/run/llama-gateway/models
+  config: /var/run/llama-gateway/config
+
+backend:
+  llamaServer:
+    executable: /opt/llama.cpp/llama-server

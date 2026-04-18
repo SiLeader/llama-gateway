@@ -1,0 +1,13 @@
+services:
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./config:/etc/llama-gateway
+    tmpfs:
+      - /var/run/llama-gateway
+    environment:
+      LOG_LEVEL: debug
