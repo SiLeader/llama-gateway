@@ -16,6 +16,9 @@ models:
   - name: ruri-v3-310m
     id: Targoyle/ruri-v3-310m-GGUF
     file: ruri-v3-310m-q8_0.gguf
+  - name: qwen3-reranker-0.6b
+    id: ggml-org/Qwen3-Reranker-0.6B-Q8_0-GGUF
+    file:  qwen3-reranker-0.6b-q8_0.gguf
 
 directories:
   models: /var/run/llama-gateway/models
@@ -25,3 +28,4 @@ backend:
   llamaServer:
     executable: /opt/llama.cpp/llama-server
     args: ["--embeddings"]
+    threads: 8

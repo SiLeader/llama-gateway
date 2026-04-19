@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -92,10 +91,10 @@ func main() {
 	url := fmt.Sprintf("http://localhost:%d", llamaServerPort)
 	proxy := revproxy.NewProxy(url, downloader)
 
-	slog.Info("Starting reverse proxy", "url", url, "port", config.Listen.Port, "host", config.Listen.Host)
-	if err := http.ListenAndServe(fmt.Sprintf("%s:%d", config.Listen.Host, config.Listen.Port), accessLog(proxy)); err != nil {
+	if err := proxy.ListenAndServe(config.Listen.Host, config.Listen.Port); err != nil {
 		panic(err)
 	}
+	slog.Info("Bye!")
 }
 
 func loadGlobalConfig(path string) (config config) {

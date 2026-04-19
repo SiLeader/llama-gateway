@@ -33,6 +33,11 @@ RUN echo "Downloading llama.cpp version ${LLAMA_CPP_TAG}..." && \
 
 FROM ubuntu:24.04
 
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends libgomp1 && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
 COPY ./config/config.yaml /etc/llama-gateway/config.yaml
 COPY --from=builder /llama-gateway/llama-gateway /usr/local/bin/
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt

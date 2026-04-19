@@ -17,16 +17,25 @@ type Manager struct {
 	presetFile string
 	args       []string
 	port       string
+	threads    int
 	spawnChan  chan os.Signal
 }
 
 func NewManager(config Config, port int, modelsDir string, presetFile string) *Manager {
+	var threads int
+	if config.Threads != nil {
+		threads = *config.Threads
+	} else {
+		threads = getCpuThreads()
+	}
+
 	return &Manager{
 		executable: config.Executable,
 		modelsDir:  modelsDir,
 		presetFile: presetFile,
 		args:       config.Args,
 		port:       fmt.Sprintf("%d", port),
+		threads:    threads,
 		spawnChan:  make(chan os.Signal, 1),
 	}
 }
@@ -57,11 +66,17 @@ func (m *Manager) run() {
 			return
 		}
 
-		cmd = exec.Command(m.executable, "--models-dir", m.modelsDir, "--models-preset", m.presetFile, "--port", m.port)
+		cmd = exec.Command(
+			m.executable,
+			"--models-dir", m.modelsDir,
+			"--models-preset", m.presetFile,
+			"--port", m.port,
+			"--threads", fmt.Sprintf("%d", m.threads),
+		)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		cmd.Dir = path.Dir(m.executable)
-		cmd.Env = append(cmd.Env, fmt.Sprintf("LD_LIBRARY_PATH=%s", path.Dir(m.executable)))
+		cmd.Env = append(os.Environ(), fmt.Sprintf("LD_LIBRARY_PATH=%s", path.Dir(m.executable)))
 		cmd.Args = append(cmd.Args, m.args...)
 
 		slog.Debug("Starting llama server", "cmd", cmd)
@@ -80,6 +95,7 @@ func (m *Manager) run() {
 		go waitProcess(cmd, m.spawnChan)
 	}
 	stopProcess(cmd)
+	slog.Info("Stopped llama server manager")
 }
 
 func waitProcess(cmd *exec.Cmd, stopChan chan os.Signal) {
@@ -89,6 +105,8 @@ func waitProcess(cmd *exec.Cmd, stopChan chan os.Signal) {
 		}
 		if cmd.ProcessState.ExitCode() != 0 {
 			slog.Error("llama server exited with non-zero exit code", "exit_code", cmd.ProcessState.ExitCode())
+		} else {
+			slog.Info("llama server exited")
 		}
 	}
 	stopChan <- syscall.SIGHUP
@@ -96,11 +114,13 @@ func waitProcess(cmd *exec.Cmd, stopChan chan os.Signal) {
 
 func stopProcess(cmd *exec.Cmd) {
 	if cmd != nil && cmd.ProcessState == nil {
+		slog.Info("Exiting llama server with SIGTERM")
 		if err := cmd.Process.Signal(os.Signal(syscall.SIGTERM)); err != nil {
 			slog.Error("Send signal failed", "err", err)
 		}
 		if err := cmd.Wait(); err != nil {
 			slog.Error("Failed to wait llama server", "error", err)
 		}
+		slog.Info("llama server exited")
 	}
 }
