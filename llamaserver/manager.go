@@ -28,6 +28,7 @@ func NewManager(config Config, port int, modelsDir string, presetFile string) *M
 	} else {
 		threads = getCpuThreads()
 	}
+	slog.Info("Detected CPU threads", "threads", threads)
 
 	return &Manager{
 		executable: config.Executable,

@@ -2,7 +2,6 @@ package revproxy
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -11,15 +10,15 @@ import (
 	"time"
 )
 
-func (p *Proxy) ListenAndServe(host string, port int) error {
+func (p *Proxy) ListenAndServe() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	srv := &http.Server{
-		Addr:    fmt.Sprintf("%s:%d", host, port),
+		Addr:    p.config.ListenAddress(),
 		Handler: accessLog(p),
 	}
-	slog.Info("Starting reverse proxy", "url", p.target, "port", port, "host", host)
+	slog.Info("Starting reverse proxy", "url", p.target, "port", p.config.ListenPort(), "host", p.config.ListenHost())
 	go srv.ListenAndServe()
 
 	<-ctx.Done()

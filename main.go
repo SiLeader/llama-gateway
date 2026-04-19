@@ -16,15 +16,10 @@ import (
 )
 
 type config struct {
-	Listen      listen       `yaml:"listen"`
-	Models      []model.Info `yaml:"models"`
-	Backend     backend      `yaml:"backend"`
-	Directories directories  `yaml:"directories"`
-}
-
-type listen struct {
-	Host string `yaml:"host"`
-	Port int    `yaml:"port"`
+	Server      revproxy.ServerConfig `yaml:"server"`
+	Models      []model.Info          `yaml:"models"`
+	Backend     backend               `yaml:"backend"`
+	Directories directories           `yaml:"directories"`
 }
 
 type backend struct {
@@ -63,15 +58,9 @@ func main() {
 	}
 
 	config := loadGlobalConfig(*configFile)
-	if len(config.Listen.Host) == 0 {
-		config.Listen.Host = "0.0.0.0"
-	}
-	if config.Listen.Port == 0 {
-		config.Listen.Port = 8080
-	}
 	presetFile := fmt.Sprintf("%s/presets.ini", config.Directories.Config)
 
-	llamaServerPort := config.Listen.Port + 1
+	llamaServerPort := config.Server.ListenPort() + 1
 	if config.Backend.Port != 0 {
 		llamaServerPort = config.Backend.Port
 	}
@@ -89,9 +78,9 @@ func main() {
 	slog.Info("Started llama server", "port", llamaServerPort)
 
 	url := fmt.Sprintf("http://localhost:%d", llamaServerPort)
-	proxy := revproxy.NewProxy(url, downloader)
+	proxy := revproxy.NewProxy(config.Server, url, downloader)
 
-	if err := proxy.ListenAndServe(config.Listen.Host, config.Listen.Port); err != nil {
+	if err := proxy.ListenAndServe(); err != nil {
 		panic(err)
 	}
 	slog.Info("Bye!")
