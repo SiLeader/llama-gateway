@@ -5,10 +5,16 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
-	"os/signal"
 	"path"
 	"syscall"
 	"time"
+)
+
+type serverEvent int
+
+const (
+	serverEventRestart serverEvent = iota
+	serverEventStopped
 )
 
 type Manager struct {
@@ -18,7 +24,7 @@ type Manager struct {
 	args       []string
 	port       string
 	threads    int
-	spawnChan  chan os.Signal
+	spawnChan  chan serverEvent
 }
 
 func NewManager(config Config, port int, modelsDir string, presetFile string) *Manager {
@@ -37,12 +43,12 @@ func NewManager(config Config, port int, modelsDir string, presetFile string) *M
 		args:       config.Args,
 		port:       fmt.Sprintf("%d", port),
 		threads:    threads,
-		spawnChan:  make(chan os.Signal, 1),
+		spawnChan:  make(chan serverEvent, 1),
 	}
 }
 
-func (m *Manager) ReloadServer() {
-	m.spawnChan <- syscall.SIGHUP
+func (m *Manager) RestartServer() {
+	m.spawnChan <- serverEventRestart
 }
 
 func (m *Manager) Close() {
@@ -51,18 +57,17 @@ func (m *Manager) Close() {
 
 func (m *Manager) Start() {
 	go m.run()
-	m.spawnChan <- syscall.SIGHUP
+	m.spawnChan <- serverEventRestart
 }
 
 func (m *Manager) run() {
 	var cmd *exec.Cmd = nil
 	retry := 0
 
-	signal.Notify(m.spawnChan, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 	for sig := range m.spawnChan {
 		stopProcess(cmd)
 
-		if sig == syscall.SIGINT || sig == syscall.SIGTERM {
+		if sig == serverEventStopped {
 			slog.Info("Received signal to stop llama server", "signal", sig)
 			return
 		}
@@ -99,7 +104,7 @@ func (m *Manager) run() {
 	slog.Info("Stopped llama server manager")
 }
 
-func waitProcess(cmd *exec.Cmd, stopChan chan os.Signal) {
+func waitProcess(cmd *exec.Cmd, stopChan chan serverEvent) {
 	if cmd != nil && cmd.ProcessState == nil {
 		if err := cmd.Wait(); err != nil {
 			slog.Error("Failed to wait llama server", "error", err)
@@ -112,7 +117,7 @@ func waitProcess(cmd *exec.Cmd, stopChan chan os.Signal) {
 			slog.Info("llama server exited")
 		}
 	}
-	stopChan <- syscall.SIGHUP
+	stopChan <- serverEventRestart
 }
 
 func stopProcess(cmd *exec.Cmd) {

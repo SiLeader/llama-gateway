@@ -108,7 +108,7 @@ func (d *Downloader) AddModel(ctx context.Context, info Info) error {
 		return err
 	}
 	if d.ls != nil {
-		d.ls.ReloadServer()
+		d.ls.RestartServer()
 	}
 	return nil
 }

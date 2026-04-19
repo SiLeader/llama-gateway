@@ -48,12 +48,8 @@ func main() {
 	{
 		lls := os.Getenv("LOG_LEVEL")
 		logLevel := slog.LevelInfo
-		if lls == "debug" {
-			logLevel = slog.LevelDebug
-		} else if lls == "warn" {
-			logLevel = slog.LevelWarn
-		} else if lls == "error" {
-			logLevel = slog.LevelError
+		if err := logLevel.UnmarshalText([]byte(lls)); err != nil {
+			log.Println("warn: Failed to parse LOG_LEVEL", err)
 		}
 		slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: logLevel})))
 	}
@@ -87,6 +83,7 @@ func main() {
 	if err := proxy.ListenAndServe(); err != nil {
 		log.Fatalln("Failed to start reverse proxy", err)
 	}
+	spawner.Close()
 	slog.Info("Bye!")
 }
 
