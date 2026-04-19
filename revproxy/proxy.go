@@ -49,10 +49,12 @@ func (p *Proxy) handleGatewayApi(w http.ResponseWriter, r *http.Request) {
 		if p.config.Apis.AddModels {
 			p.addModel(w, r)
 			return
-		} else {
-			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte("Add models is not enabled."))
-			return
 		}
+
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte("Add models is not enabled."))
+		return
 	}
+	w.WriteHeader(http.StatusNotFound)
+	w.Write([]byte("Not found"))
 }

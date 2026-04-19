@@ -34,7 +34,7 @@ func (c *Client) downloadWithVerify(ctx context.Context, repo, filename, destPat
 
 	url := fmt.Sprintf("%s/%s/resolve/main/%s", c.baseURL, repo, filename)
 	slog.DebugContext(ctx, "Downloading", "url", url)
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %v", err)
 	}

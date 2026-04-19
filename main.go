@@ -72,6 +72,7 @@ func main() {
 	slog.Info("Downloaded all models")
 
 	spawner.Start()
+	defer spawner.Close()
 	slog.Info("Started llama server", "port", llamaServerPort)
 
 	url := fmt.Sprintf("http://localhost:%d", llamaServerPort)
@@ -83,7 +84,6 @@ func main() {
 	if err := proxy.ListenAndServe(); err != nil {
 		log.Fatalln("Failed to start reverse proxy", err)
 	}
-	spawner.Close()
 	slog.Info("Bye!")
 }
 
