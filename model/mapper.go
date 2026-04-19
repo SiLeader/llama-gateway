@@ -2,7 +2,7 @@ package model
 
 import (
 	"context"
-	"path"
+	"path/filepath"
 
 	"github.com/sileader/llama-gateway/huggingface"
 )
@@ -15,7 +15,8 @@ type Info struct {
 }
 
 func (i Info) DestinationPath(destination string) string {
-	return path.Join(destination, i.File)
+	cleaned := filepath.Join("/", i.File)
+	return filepath.Join(destination, cleaned)
 }
 
 func (i Info) Download(ctx context.Context, destination string, client *huggingface.Client) error {

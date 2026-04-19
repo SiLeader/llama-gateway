@@ -104,7 +104,9 @@ func waitProcess(cmd *exec.Cmd, stopChan chan os.Signal) {
 		if err := cmd.Wait(); err != nil {
 			slog.Error("Failed to wait llama server", "error", err)
 		}
-		if cmd.ProcessState.ExitCode() != 0 {
+		if cmd.ProcessState == nil {
+			slog.Error("llama server exited with nil ProcessState")
+		} else if cmd.ProcessState.ExitCode() != 0 {
 			slog.Error("llama server exited with non-zero exit code", "exit_code", cmd.ProcessState.ExitCode())
 		} else {
 			slog.Info("llama server exited")

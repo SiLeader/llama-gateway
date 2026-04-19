@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log"
 	"log/slog"
 	"os"
 
@@ -36,7 +37,7 @@ func main() {
 	err := godotenv.Load()
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
-			panic(err)
+			log.Fatalln("Failed to load .env file", err)
 		}
 	}
 
@@ -70,7 +71,7 @@ func main() {
 	hfClient := huggingface.NewClient(hfToken)
 	downloader := model.NewDownloader(config.Models, config.Directories.Models, presetFile, hfClient, spawner)
 	if err := downloader.DownloadAll(); err != nil {
-		panic(err)
+		log.Fatalln("Failed to download all models", "error", err)
 	}
 	slog.Info("Downloaded all models")
 
@@ -78,10 +79,13 @@ func main() {
 	slog.Info("Started llama server", "port", llamaServerPort)
 
 	url := fmt.Sprintf("http://localhost:%d", llamaServerPort)
-	proxy := revproxy.NewProxy(config.Server, url, downloader)
+	proxy, err := revproxy.NewProxy(config.Server, url, downloader)
+	if err != nil {
+		log.Fatalln("Failed to create proxy instance", err)
+	}
 
 	if err := proxy.ListenAndServe(); err != nil {
-		panic(err)
+		log.Fatalln("Failed to start reverse proxy", err)
 	}
 	slog.Info("Bye!")
 }
@@ -90,11 +94,11 @@ func loadGlobalConfig(path string) (config config) {
 	slog.Info("Loading global config", "path", path)
 	configContent, err := os.ReadFile(path)
 	if err != nil {
-		panic(err)
+		log.Fatalln("Failed to read config file", err)
 	}
 
 	if err := yaml.Unmarshal(configContent, &config); err != nil {
-		panic(err)
+		log.Fatalln("Failed to parse config file", err)
 	}
 	return
 }

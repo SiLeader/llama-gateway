@@ -2,6 +2,8 @@ package revproxy
 
 import (
 	"context"
+	"errors"
+	"log"
 	"log/slog"
 	"net/http"
 	"os"
@@ -19,7 +21,11 @@ func (p *Proxy) ListenAndServe() error {
 		Handler: accessLog(p),
 	}
 	slog.Info("Starting reverse proxy", "url", p.target, "port", p.config.ListenPort(), "host", p.config.ListenHost())
-	go srv.ListenAndServe()
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalln("Failed to start reverse proxy", err)
+		}
+	}()
 
 	<-ctx.Done()
 	slog.Info("Shutting down reverse proxy")

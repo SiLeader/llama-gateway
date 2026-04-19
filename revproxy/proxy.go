@@ -1,6 +1,7 @@
 package revproxy
 
 import (
+	"log"
 	"log/slog"
 	"net/http"
 	"net/http/httputil"
@@ -17,20 +18,21 @@ type Proxy struct {
 	config  ServerConfig
 }
 
-func NewProxy(config ServerConfig, targetURL string, dl *model.Downloader) *Proxy {
+func NewProxy(config ServerConfig, targetURL string, dl *model.Downloader) (*Proxy, error) {
 	target, err := url.Parse(targetURL)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	if target == nil {
-		panic("invalid target URL")
+		log.Fatalln("invalid target URL")
 	}
-	return &Proxy{
+	p := &Proxy{
 		target:  target,
 		reverse: httputil.NewSingleHostReverseProxy(target),
 		dl:      dl,
 		config:  config,
 	}
+	return p, nil
 }
 
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
