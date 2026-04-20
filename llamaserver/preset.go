@@ -1,6 +1,10 @@
 package llamaserver
 
-import "fmt"
+import (
+	"fmt"
+	"maps"
+	"slices"
+)
 
 type Presets struct {
 	Global *Preset
@@ -18,7 +22,8 @@ func (p Presets) String() string {
 		s += "\n[*]\n"
 		s += p.Global.String()
 	}
-	for k, v := range p.Models {
+	for _, k := range slices.Sorted(maps.Keys(p.Models)) {
+		v := p.Models[k]
 		s += fmt.Sprintf("\n[%s]\n", k)
 		s += v.String()
 	}

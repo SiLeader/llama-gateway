@@ -5,7 +5,5 @@ go 1.26
 require (
 	github.com/joho/godotenv v1.5.1
 	golang.org/x/sync v0.20.0
-	sigs.k8s.io/yaml v1.6.0
+	gopkg.in/yaml.v3 v3.0.1
 )
-
-require go.yaml.in/yaml/v2 v2.4.2 // indirect

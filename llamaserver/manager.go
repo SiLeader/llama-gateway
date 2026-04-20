@@ -1,6 +1,7 @@
 package llamaserver
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -43,7 +44,7 @@ func NewManager(config Config, port int, modelsDir string, presetFile string) *M
 		args:       config.Args,
 		port:       fmt.Sprintf("%d", port),
 		threads:    threads,
-		spawnChan:  make(chan serverEvent, 1),
+		spawnChan:  make(chan serverEvent, 64),
 	}
 }
 
@@ -52,18 +53,14 @@ func (m *Manager) RestartServer() {
 }
 
 func (m *Manager) Close() {
-	close(m.spawnChan)
+	m.spawnChan <- serverEventStopped
 }
 
-func (m *Manager) Start() {
-	go m.run()
-	m.spawnChan <- serverEventRestart
-}
-
-func (m *Manager) run() {
+func (m *Manager) Run(ctx context.Context) {
 	var cmd *exec.Cmd = nil
 	retry := 0
 
+	m.spawnChan <- serverEventRestart
 	for sig := range m.spawnChan {
 		stopProcess(cmd)
 
@@ -72,7 +69,8 @@ func (m *Manager) run() {
 			return
 		}
 
-		cmd = exec.Command(
+		cmd = exec.CommandContext(
+			ctx,
 			m.executable,
 			"--models-dir", m.modelsDir,
 			"--models-preset", m.presetFile,
@@ -84,6 +82,10 @@ func (m *Manager) run() {
 		cmd.Dir = path.Dir(m.executable)
 		cmd.Env = append(os.Environ(), fmt.Sprintf("LD_LIBRARY_PATH=%s", path.Dir(m.executable)))
 		cmd.Args = append(cmd.Args, m.args...)
+		cmd.Cancel = func() error {
+			return cmd.Process.Signal(syscall.SIGTERM)
+		}
+		cmd.WaitDelay = 5 * time.Second
 
 		slog.Debug("Starting llama server", "cmd", cmd)
 		if err := cmd.Start(); err != nil {

@@ -1,19 +1,22 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
 	"log"
 	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/joho/godotenv"
 	"github.com/sileader/llama-gateway/huggingface"
 	"github.com/sileader/llama-gateway/llamaserver"
 	"github.com/sileader/llama-gateway/model"
 	"github.com/sileader/llama-gateway/revproxy"
-	"sigs.k8s.io/yaml"
+	"gopkg.in/yaml.v3"
 )
 
 type config struct {
@@ -74,8 +77,9 @@ func main() {
 	}
 	slog.Info("Downloaded all models")
 
-	spawner.Start()
-	defer spawner.Close()
+	shutdownCtx, shutdownCancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer shutdownCancel()
+
 	slog.Info("Started llama server", "port", llamaServerPort)
 
 	url := fmt.Sprintf("http://localhost:%d", llamaServerPort)
@@ -84,9 +88,10 @@ func main() {
 		log.Fatalln("Failed to create proxy instance", err)
 	}
 
-	if err := proxy.ListenAndServe(); err != nil {
+	if err := proxy.ListenAndServe(shutdownCtx); err != nil {
 		log.Fatalln("Failed to start reverse proxy", err)
 	}
+	spawner.Run(shutdownCtx)
 	slog.Info("Bye!")
 }
 

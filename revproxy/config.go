@@ -56,3 +56,7 @@ func (c *ServerConfig) AdminKey() (string, error) {
 	}
 	return value, nil
 }
+
+func (a *api) IsAdminApiEnabled() bool {
+	return a.AddModels
+}
