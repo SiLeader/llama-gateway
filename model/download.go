@@ -32,17 +32,20 @@ func NewDownloader(
 	presetFile string,
 	client *huggingface.Client,
 	ls *llamaserver.Manager,
-) *Downloader {
+) (*Downloader, error) {
 	mappingMap := map[string]Info{}
 	presets := map[string]llamaserver.Preset{}
 	for _, m := range mapping {
+		if err := m.Validate(); err != nil {
+			return nil, err
+		}
 		mappingMap[m.Name] = m
 		presets[m.Name] = llamaserver.Preset{
 			Model:   m.DestinationPath(destination),
 			Context: m.Context,
 		}
 	}
-	return &Downloader{
+	dl := &Downloader{
 		models: models{
 			mapping: mappingMap,
 			presets: llamaserver.Presets{
@@ -55,6 +58,7 @@ func NewDownloader(
 		client:      client,
 		ls:          ls,
 	}
+	return dl, nil
 }
 
 func (d *Downloader) DownloadAll() error {

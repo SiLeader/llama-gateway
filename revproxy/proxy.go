@@ -12,10 +12,11 @@ import (
 )
 
 type Proxy struct {
-	target  *url.URL
-	reverse *httputil.ReverseProxy
-	dl      *model.Downloader
-	config  ServerConfig
+	target   *url.URL
+	reverse  *httputil.ReverseProxy
+	dl       *model.Downloader
+	config   ServerConfig
+	adminKey string
 }
 
 func NewProxy(config ServerConfig, targetURL string, dl *model.Downloader) (*Proxy, error) {
@@ -26,11 +27,16 @@ func NewProxy(config ServerConfig, targetURL string, dl *model.Downloader) (*Pro
 	if target == nil {
 		log.Fatalln("invalid target URL")
 	}
+	adminKey, err := config.AdminKey()
+	if err != nil {
+		return nil, err
+	}
 	p := &Proxy{
-		target:  target,
-		reverse: httputil.NewSingleHostReverseProxy(target),
-		dl:      dl,
-		config:  config,
+		target:   target,
+		reverse:  httputil.NewSingleHostReverseProxy(target),
+		dl:       dl,
+		config:   config,
+		adminKey: adminKey,
 	}
 	return p, nil
 }
@@ -47,6 +53,12 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (p *Proxy) handleGatewayApi(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost && r.URL.Path == "/gateway/v1/models" {
 		if p.config.Apis.AddModels {
+			keys := r.Header.Values("X-Llama-Gateway-Api-Key")
+			if len(keys) == 0 || keys[0] != p.adminKey {
+				w.WriteHeader(http.StatusForbidden)
+				w.Write([]byte("operation not allowed"))
+				return
+			}
 			p.addModel(w, r)
 			return
 		}

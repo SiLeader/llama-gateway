@@ -65,7 +65,10 @@ func main() {
 
 	hfToken := loadHfConfig()
 	hfClient := huggingface.NewClient(hfToken)
-	downloader := model.NewDownloader(config.Models, config.Directories.Models, presetFile, hfClient, spawner)
+	downloader, err := model.NewDownloader(config.Models, config.Directories.Models, presetFile, hfClient, spawner)
+	if err != nil {
+		log.Fatalln("Failed to create downloader", err)
+	}
 	if err := downloader.DownloadAll(); err != nil {
 		log.Fatalln("Failed to download all models", "error", err)
 	}

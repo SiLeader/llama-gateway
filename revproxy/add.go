@@ -16,6 +16,11 @@ func (p *Proxy) addModel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := info.Validate(); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	if err := p.dl.AddModel(r.Context(), info); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
