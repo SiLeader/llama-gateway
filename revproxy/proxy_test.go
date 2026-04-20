@@ -129,7 +129,7 @@ func TestHandleGatewayApi_Forbidden_NoKey(t *testing.T) {
 func TestHandleGatewayApi_Forbidden_WrongKey(t *testing.T) {
 	p := proxyWithAdminKey(t, "http://localhost:9999", "mysecret")
 	req := httptest.NewRequest(http.MethodPost, "/gateway/v1/models", nil)
-	req.Header.Set("X-Llama-Gateway-Api-Key", "wrongkey")
+	req.Header.Set("Authorization", "Bearer wrongkey")
 	rec := httptest.NewRecorder()
 	p.ServeHTTP(rec, req)
 	if rec.Code != http.StatusForbidden {
@@ -186,7 +186,7 @@ func TestHandleGatewayApi_AddModel_ValidKey(t *testing.T) {
 	body, _ := json.Marshal(existing)
 	req := httptest.NewRequest(http.MethodPost, "/gateway/v1/models", strings.NewReader(string(body)))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Llama-Gateway-Api-Key", "secret")
+	req.Header.Set("Authorization", "Bearer secret")
 	rec := httptest.NewRecorder()
 	p.ServeHTTP(rec, req)
 	if rec.Code != http.StatusCreated {
@@ -197,7 +197,7 @@ func TestHandleGatewayApi_AddModel_ValidKey(t *testing.T) {
 func TestHandleGatewayApi_AddModel_InvalidBody(t *testing.T) {
 	p := proxyWithAdminKey(t, "http://localhost:9999", "secret")
 	req := httptest.NewRequest(http.MethodPost, "/gateway/v1/models", strings.NewReader("not json"))
-	req.Header.Set("X-Llama-Gateway-Api-Key", "secret")
+	req.Header.Set("Authorization", "Bearer secret")
 	rec := httptest.NewRecorder()
 	p.ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadRequest {
@@ -210,7 +210,7 @@ func TestHandleGatewayApi_AddModel_InvalidModelName(t *testing.T) {
 	body := `{"name":"bad name!","id":"org/repo","file":"model.gguf"}`
 	req := httptest.NewRequest(http.MethodPost, "/gateway/v1/models", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Llama-Gateway-Api-Key", "secret")
+	req.Header.Set("Authorization", "Bearer secret")
 	rec := httptest.NewRecorder()
 	p.ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadRequest {
@@ -223,7 +223,7 @@ func TestHandleGatewayApi_AddModel_PathTraversal(t *testing.T) {
 	body := `{"name":"safe","id":"org/repo","file":"../../../etc/passwd"}`
 	req := httptest.NewRequest(http.MethodPost, "/gateway/v1/models", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Llama-Gateway-Api-Key", "secret")
+	req.Header.Set("Authorization", "Bearer secret")
 	rec := httptest.NewRecorder()
 	p.ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadRequest {

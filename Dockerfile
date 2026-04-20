@@ -44,5 +44,6 @@ COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certifi
 COPY --from=llama-cpp /work /opt/llama.cpp
 
 EXPOSE 8080
+USER 1000:1000
 
 CMD ["/usr/local/bin/llama-gateway"]

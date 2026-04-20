@@ -176,8 +176,9 @@ func (p *Proxy) handleGatewayApi(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *Proxy) checkAdminKey(w http.ResponseWriter, r *http.Request) bool {
-	keys := r.Header.Values("X-Llama-Gateway-Api-Key")
-	if len(keys) == 0 || subtle.ConstantTimeCompare([]byte(keys[0]), []byte(p.adminKey)) != 1 {
+	auth := r.Header.Get("Authorization")
+	token := strings.TrimPrefix(auth, "Bearer ")
+	if token == auth || subtle.ConstantTimeCompare([]byte(token), []byte(p.adminKey)) != 1 {
 		w.WriteHeader(http.StatusForbidden)
 		w.Write([]byte("operation not allowed"))
 		return false

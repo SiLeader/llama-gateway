@@ -6,9 +6,12 @@ A lightweight gateway server that sits in front of [llama.cpp](https://github.co
 
 - **Automatic model downloads** — fetches GGUF models from Hugging Face on startup, with SHA256 verification
 - **llama-server lifecycle management** — spawns and supervises `llama-server`, restarting it automatically on crash
-- **Full llama-server API passthrough** — all endpoints supported by `llama-server` are available as-is
+- **Zero-downtime rollovers** — blue/green upstream swap via Orchestrator when two backend ports are configured
+- **Full llama-server API passthrough** — all endpoints (including `GET /health`) are forwarded as-is
+- **Health check** — `GET /health` is forwarded to `llama-server`, confirming both gateway and backend are healthy
 - **Model name mapping** — maps user-friendly model names to the underlying GGUF files via `presets.ini`
 - **Runtime model registration** — optional admin API to add models without restarting the gateway
+- **Config reload** — `POST /gateway/v1/reload` reloads config and triggers a zero-downtime rollover
 - **Docker support** — includes a multi-stage Dockerfile and Docker Compose config
 
 ## Requirements
@@ -95,6 +98,14 @@ go build -o llama-gateway
 
 The gateway transparently forwards all requests to `llama-server`, so every endpoint that `llama-server` supports is available. Refer to the [llama.cpp server documentation](https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md) for the full API reference.
 
+### Health check
+
+```bash
+curl http://localhost:8080/health
+```
+
+`GET /health` is forwarded directly to `llama-server`, so a successful `200 OK` response confirms that **both** llama-gateway (reachable) and llama-server (running and ready) are healthy. This is the recommended endpoint for container health checks and load-balancer probes.
+
 ### Example: Responses
 
 ```bash
@@ -122,7 +133,7 @@ curl http://localhost:8080/v1/embeddings \
 
 ### Gateway admin API
 
-When `server.apis.addModels` is `true`, the gateway exposes endpoints under `/gateway/` for managing models at runtime. These are handled by the gateway itself and are **not** forwarded to `llama-server`. They require the admin key in the `X-Llama-Gateway-Api-Key` header.
+When `server.apis.addModels` is `true`, the gateway exposes endpoints under `/gateway/` for managing models at runtime. These are handled by the gateway itself and are **not** forwarded to `llama-server`. They require the admin key as an `Authorization: Bearer <key>` header.
 
 #### `POST /gateway/v1/models`
 
@@ -131,7 +142,7 @@ Adds a new model. The file is downloaded from Hugging Face, `presets.ini` is rew
 ```bash
 curl http://localhost:8080/gateway/v1/models \
   -H "Content-Type: application/json" \
-  -H "X-Llama-Gateway-Api-Key: $LLAMA_GATEWAY_ADMIN_KEY" \
+  -H "Authorization: Bearer $LLAMA_GATEWAY_ADMIN_KEY" \
   -d '{
     "name": "gemma3-270m",
     "id": "ggml-org/gemma-3-270m-it-qat-GGUF",
@@ -142,6 +153,17 @@ curl http://localhost:8080/gateway/v1/models \
 
 Returns `201 Created` on success, `403 Forbidden` if the admin key is missing or incorrect, and `404 Not Found` if `addModels` is disabled.
 
+#### `POST /gateway/v1/reload`
+
+Reloads the gateway configuration and performs a zero-downtime rollover of `llama-server` (blue/green swap when two backend ports are configured; in-place restart otherwise). Requires the admin key.
+
+```bash
+curl -X POST http://localhost:8080/gateway/v1/reload \
+  -H "Authorization: Bearer $LLAMA_GATEWAY_ADMIN_KEY"
+```
+
+Returns `200 OK` on success, `403 Forbidden` if the admin key is missing or incorrect.
+
 ## Architecture
 
 ```
@@ -151,7 +173,13 @@ Client
 llama-gateway  (port 8080)
   │  - downloads models from Hugging Face on startup
   │  - resolves model name → GGUF file path
-  │  - reverse-proxies requests
+  │  - reverse-proxies all requests (including /health)
+  │  - handles /gateway/* admin endpoints locally
+  ▼
+Orchestrator
+  │  - manages llama-server lifecycle
+  │  - zero-downtime blue/green rollover (2 backend ports)
+  │  - in-place restart fallback (1 backend port)
   ▼
 llama-server   (port 8081, internal)
 ```
@@ -159,8 +187,18 @@ llama-server   (port 8081, internal)
 On startup the gateway:
 1. Downloads all configured models from Hugging Face (skips files that already match the expected SHA256).
 2. Writes a `presets.ini` file consumed by `llama-server`'s `--models-preset` flag.
-3. Starts `llama-server` on `backend.port` (or `server.listen.port + 1` if unset) and supervises it, restarting on crash.
+3. Starts `llama-server` via the Orchestrator on `backend.port` (or `server.listen.port + 1` if unset) and supervises it, restarting on crash.
 4. Starts an HTTP server that reverse-proxies incoming requests to `llama-server` and handles `/gateway/*` admin endpoints itself.
+
+### Zero-downtime rollovers
+
+When two backend ports are configured (e.g. `backend.ports: [8081, 8082]`), the Orchestrator performs a blue/green rollover on reload or model add:
+
+1. Start a new `llama-server` instance on the idle port and wait for `/health` to return `200`.
+2. Atomically swap the reverse-proxy upstream to the new instance.
+3. Drain in-flight requests on the old instance (up to 30 s), then shut it down.
+
+With only one backend port configured, the Orchestrator falls back to an in-place restart.
 
 ## License
 
