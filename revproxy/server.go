@@ -12,11 +12,12 @@ import (
 
 func (p *Proxy) ListenAndServe(shutdownCtx context.Context) error {
 	srv := &http.Server{
-		Addr:         p.config.ListenAddress(),
-		Handler:      accessLog(p),
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 5 * time.Minute,
-		ErrorLog:     log.Default(),
+		Addr:              p.config.ListenAddress(),
+		Handler:           accessLog(p),
+		ReadTimeout:       5 * time.Second,
+		WriteTimeout:      5 * time.Minute,
+		ErrorLog:          log.Default(),
+		ReadHeaderTimeout: 5 * time.Second,
 	}
 	slog.Info("Starting reverse proxy", "port", p.config.ListenPort(), "host", p.config.ListenHost())
 

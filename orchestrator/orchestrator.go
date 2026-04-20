@@ -117,6 +117,10 @@ func (o *Orchestrator) rollover(ctx context.Context, newCfg llamaserver.Config) 
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
+	if o.active == nil {
+		return nil
+	}
+
 	if len(o.ports) < 2 {
 		slog.Warn("Zero-downtime rollover requires at least 2 ports; falling back to in-place restart")
 		o.active.mgr.RestartServer()

@@ -8,6 +8,10 @@ import (
 )
 
 func (p *Proxy) addModel(w http.ResponseWriter, r *http.Request) {
+	if p.dl == nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
 	defer r.Body.Close()
 	var info model.Info
 

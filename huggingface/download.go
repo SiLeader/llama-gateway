@@ -57,8 +57,11 @@ func (c *Client) downloadWithVerify(ctx context.Context, repo, filename, destPat
 	if err != nil {
 		return err
 	}
+	isOpen := true
 	defer func() {
-		f.Close()
+		if isOpen {
+			f.Close()
+		}
 		os.Remove(tmp) // エラー時の掃除（Rename後は空振り）
 	}()
 
@@ -76,5 +79,9 @@ func (c *Client) downloadWithVerify(ctx context.Context, repo, filename, destPat
 	}
 
 	slog.DebugContext(ctx, "Moving to final location", "dest", destPath)
+	isOpen = false
+	if err := f.Close(); err != nil {
+		return err
+	}
 	return os.Rename(tmp, destPath)
 }

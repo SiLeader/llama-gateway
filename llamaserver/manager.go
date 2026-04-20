@@ -91,6 +91,9 @@ func (m *Manager) Run(ctx context.Context) {
 		cmd.Env = append(os.Environ(), fmt.Sprintf("LD_LIBRARY_PATH=%s", path.Dir(m.executable)))
 		cmd.Args = append(cmd.Args, m.args...)
 		cmd.Cancel = func() error {
+			if cmd.Process == nil {
+				return nil
+			}
 			return cmd.Process.Signal(syscall.SIGTERM)
 		}
 		cmd.WaitDelay = 5 * time.Second
