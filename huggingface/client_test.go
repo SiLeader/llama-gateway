@@ -21,8 +21,8 @@ func TestNewClient(t *testing.T) {
 	if c.baseURL != "https://huggingface.co" {
 		t.Errorf("baseURL = %q, want %q", c.baseURL, "https://huggingface.co")
 	}
-	if c.httpClient != http.DefaultClient {
-		t.Error("httpClient should default to http.DefaultClient")
+	if c.httpClient == nil {
+		t.Error("httpClient should be non-nil")
 	}
 }
 

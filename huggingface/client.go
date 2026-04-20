@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
+	"time"
 )
 
 type Client struct {
@@ -15,9 +17,20 @@ type Client struct {
 
 func NewClient(token string) *Client {
 	return &Client{
-		token:      token,
-		baseURL:    "https://huggingface.co",
-		httpClient: http.DefaultClient,
+		token:   token,
+		baseURL: "https://huggingface.co",
+		httpClient: &http.Client{
+			Transport: &http.Transport{
+				DialContext: (&net.Dialer{
+					Timeout:   30 * time.Second,
+					KeepAlive: 30 * time.Second,
+				}).DialContext,
+				TLSHandshakeTimeout:   10 * time.Second,
+				ResponseHeaderTimeout: 30 * time.Second,
+				ExpectContinueTimeout: 1 * time.Second,
+				IdleConnTimeout:       90 * time.Second,
+			},
+		},
 	}
 }
 

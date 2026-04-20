@@ -3,6 +3,7 @@ package revproxy
 import (
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 )
 
@@ -82,6 +83,32 @@ func TestAccessLog_PassThrough(t *testing.T) {
 	if rec.Body.String() != "ok" {
 		t.Errorf("body = %q, want %q", rec.Body.String(), "ok")
 	}
+}
+
+type flushingRecorder struct {
+	*httptest.ResponseRecorder
+	flushed atomic.Bool
+}
+
+func (f *flushingRecorder) Flush() {
+	f.flushed.Store(true)
+	f.ResponseRecorder.Flush()
+}
+
+func TestLoggingResponseWriter_Flush_WithFlusher(t *testing.T) {
+	rec := &flushingRecorder{ResponseRecorder: httptest.NewRecorder()}
+	lrw := &loggingResponseWriter{ResponseWriter: rec}
+	lrw.Flush()
+	if !rec.flushed.Load() {
+		t.Error("Flush() did not call underlying Flusher")
+	}
+}
+
+func TestLoggingResponseWriter_Flush_WithoutFlusher(t *testing.T) {
+	// httptest.ResponseRecorder implements Flusher, so use a plain struct
+	lrw := &loggingResponseWriter{ResponseWriter: struct{ http.ResponseWriter }{httptest.NewRecorder()}}
+	// Should not panic when underlying writer does not implement Flusher
+	lrw.Flush()
 }
 
 func TestAccessLog_StatusDefault200(t *testing.T) {

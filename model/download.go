@@ -61,17 +61,15 @@ func NewDownloader(
 	return dl, nil
 }
 
-func (d *Downloader) DownloadAll() error {
-	ctx := context.Background()
-
+func (d *Downloader) DownloadAll(ctx context.Context) error {
 	d.models.m.Lock()
 	defer d.models.m.Unlock()
 
-	eg := errgroup.Group{}
+	eg, egCtx := errgroup.WithContext(ctx)
 	for _, m := range d.models.mapping {
 		eg.Go(func() error {
-			slog.InfoContext(ctx, "Downloading model", "model", m.Id)
-			return m.Download(ctx, d.destination, d.client)
+			slog.InfoContext(egCtx, "Downloading model", "model", m.Id)
+			return m.Download(egCtx, d.destination, d.client)
 		})
 	}
 	if err := eg.Wait(); err != nil {

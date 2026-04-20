@@ -2,11 +2,13 @@ package llamaserver
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
 	"os/exec"
 	"path"
+	"sync/atomic"
 	"syscall"
 	"time"
 )
@@ -17,6 +19,12 @@ const (
 	serverEventRestart serverEvent = iota
 	serverEventStopped
 )
+
+type managedCmd struct {
+	cmd      *exec.Cmd
+	done     chan struct{}
+	stopping atomic.Bool
+}
 
 type Manager struct {
 	executable string
@@ -57,19 +65,19 @@ func (m *Manager) Close() {
 }
 
 func (m *Manager) Run(ctx context.Context) {
-	var cmd *exec.Cmd = nil
+	var mc *managedCmd
 	retry := 0
 
 	m.spawnChan <- serverEventRestart
 	for sig := range m.spawnChan {
-		stopProcess(cmd)
+		stopCmd(mc)
 
 		if sig == serverEventStopped {
-			slog.Info("Received signal to stop llama server", "signal", sig)
+			slog.Info("Received signal to stop llama server")
 			return
 		}
 
-		cmd = exec.CommandContext(
+		cmd := exec.CommandContext(
 			ctx,
 			m.executable,
 			"--models-dir", m.modelsDir,
@@ -93,44 +101,57 @@ func (m *Manager) Run(ctx context.Context) {
 			if retry < 5 {
 				time.Sleep(2 * time.Second)
 				retry++
+				m.spawnChan <- serverEventRestart
 				continue
 			}
-			slog.Error("Failed to start llama server after 5 retries", "error", err)
+			slog.Error("Failed to start llama server after 5 retries")
 			return
 		}
 		retry = 0
 		slog.Info("Started llama server", "port", m.port)
-		go waitProcess(cmd, m.spawnChan)
+
+		mc = &managedCmd{cmd: cmd, done: make(chan struct{})}
+		go func(mc *managedCmd) {
+			defer close(mc.done)
+			err := mc.cmd.Wait()
+			if err != nil {
+				slog.Error("llama-server exited with error", "error", err)
+			} else if ps := mc.cmd.ProcessState; ps != nil && ps.ExitCode() != 0 {
+				slog.Error("llama-server non-zero exit", "exit_code", ps.ExitCode())
+			} else {
+				slog.Info("llama-server exited cleanly")
+			}
+			if !mc.stopping.Load() {
+				m.spawnChan <- serverEventRestart
+			}
+		}(mc)
 	}
-	stopProcess(cmd)
+	stopCmd(mc)
 	slog.Info("Stopped llama server manager")
 }
 
-func waitProcess(cmd *exec.Cmd, stopChan chan serverEvent) {
-	if cmd != nil && cmd.ProcessState == nil {
-		if err := cmd.Wait(); err != nil {
-			slog.Error("Failed to wait llama server", "error", err)
-		}
-		if cmd.ProcessState == nil {
-			slog.Error("llama server exited with nil ProcessState")
-		} else if cmd.ProcessState.ExitCode() != 0 {
-			slog.Error("llama server exited with non-zero exit code", "exit_code", cmd.ProcessState.ExitCode())
-		} else {
-			slog.Info("llama server exited")
-		}
+func stopCmd(mc *managedCmd) {
+	if mc == nil {
+		return
 	}
-	stopChan <- serverEventRestart
-}
-
-func stopProcess(cmd *exec.Cmd) {
-	if cmd != nil && cmd.ProcessState == nil {
-		slog.Info("Exiting llama server with SIGTERM")
-		if err := cmd.Process.Signal(os.Signal(syscall.SIGTERM)); err != nil {
-			slog.Error("Send signal failed", "err", err)
+	select {
+	case <-mc.done:
+		return
+	default:
+	}
+	mc.stopping.Store(true)
+	if err := mc.cmd.Process.Signal(syscall.SIGTERM); err != nil &&
+		!errors.Is(err, os.ErrProcessDone) {
+		slog.Warn("Failed to send SIGTERM to llama-server", "error", err)
+	}
+	select {
+	case <-mc.done:
+	case <-time.After(5 * time.Second):
+		_ = mc.cmd.Process.Kill()
+		select {
+		case <-mc.done:
+		case <-time.After(5 * time.Second):
+			slog.Error("llama-server failed to exit after SIGKILL")
 		}
-		if err := cmd.Wait(); err != nil {
-			slog.Error("Failed to wait llama server", "error", err)
-		}
-		slog.Info("llama server exited")
 	}
 }

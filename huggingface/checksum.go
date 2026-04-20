@@ -24,7 +24,7 @@ type modelInfo struct {
 func (c *Client) fetchFileInfo(ctx context.Context, repo, filename string) (*fileInfo, error) {
 	url := fmt.Sprintf("%s/api/models/%s/revision/main", c.baseURL, repo)
 	slog.DebugContext(ctx, "Fetching file info", "url", url)
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %v", err)
 	}

@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 
 	"github.com/joho/godotenv"
@@ -51,11 +52,16 @@ func main() {
 	{
 		lls := os.Getenv("LOG_LEVEL")
 		logLevel := slog.LevelInfo
-		if err := logLevel.UnmarshalText([]byte(lls)); err != nil {
-			log.Println("warn: Failed to parse LOG_LEVEL", err)
+		if lls != "" {
+			if err := logLevel.UnmarshalText([]byte(lls)); err != nil {
+				log.Println("warn: Failed to parse LOG_LEVEL", err)
+			}
 		}
 		slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: logLevel})))
 	}
+
+	shutdownCtx, shutdownCancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer shutdownCancel()
 
 	config := loadGlobalConfig(*configFile)
 	presetFile := fmt.Sprintf("%s/presets.ini", config.Directories.Config)
@@ -72,14 +78,17 @@ func main() {
 	if err != nil {
 		log.Fatalln("Failed to create downloader", err)
 	}
-	if err := downloader.DownloadAll(); err != nil {
+	if err := downloader.DownloadAll(shutdownCtx); err != nil {
 		log.Fatalln("Failed to download all models", "error", err)
 	}
 	slog.Info("Downloaded all models")
 
-	shutdownCtx, shutdownCancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer shutdownCancel()
-
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		spawner.Run(shutdownCtx)
+	}()
 	slog.Info("Started llama server", "port", llamaServerPort)
 
 	url := fmt.Sprintf("http://localhost:%d", llamaServerPort)
@@ -89,9 +98,10 @@ func main() {
 	}
 
 	if err := proxy.ListenAndServe(shutdownCtx); err != nil {
-		log.Fatalln("Failed to start reverse proxy", err)
+		slog.Error("Reverse proxy error", "error", err)
 	}
-	spawner.Run(shutdownCtx)
+	spawner.Close()
+	wg.Wait()
 	slog.Info("Bye!")
 }
 
