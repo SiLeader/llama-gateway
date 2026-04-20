@@ -18,7 +18,7 @@ func (p *Proxy) ListenAndServe(shutdownCtx context.Context) error {
 		WriteTimeout: 5 * time.Minute,
 		ErrorLog:     log.Default(),
 	}
-	slog.Info("Starting reverse proxy", "url", p.target, "port", p.config.ListenPort(), "host", p.config.ListenHost())
+	slog.Info("Starting reverse proxy", "port", p.config.ListenPort(), "host", p.config.ListenHost())
 
 	errCh := make(chan error, 1)
 	go func() {

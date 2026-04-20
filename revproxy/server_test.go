@@ -22,7 +22,7 @@ func TestListenAndServe_PortAlreadyInUse(t *testing.T) {
 
 	dl, _ := model.NewDownloader([]model.Info{}, "/tmp", "/tmp/presets.ini", nil, nil)
 	cfg := ServerConfig{Listen: listen{Host: "127.0.0.1", Port: ln.Addr().(*net.TCPAddr).Port}}
-	p, err := NewProxy(cfg, "http://localhost:9999", dl)
+	p, err := NewProxy(cfg, "http://localhost:9999", dl, nil)
 	if err != nil {
 		t.Fatalf("NewProxy: %v", err)
 	}
@@ -53,7 +53,7 @@ func TestListenAndServe_GracefulShutdown(t *testing.T) {
 	ln.Close()
 
 	cfg := ServerConfig{Listen: listen{Host: "127.0.0.1", Port: port}}
-	p, err := NewProxy(cfg, backend.URL, dl)
+	p, err := NewProxy(cfg, backend.URL, dl, nil)
 	if err != nil {
 		t.Fatalf("NewProxy: %v", err)
 	}

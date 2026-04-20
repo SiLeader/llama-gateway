@@ -2,6 +2,7 @@ package model
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -12,12 +13,17 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+// ServerController triggers a llama-server rollover after preset changes.
+type ServerController interface {
+	RestartServer(ctx context.Context) error
+}
+
 type Downloader struct {
 	models      models
 	destination string
 	presetFile  string
 	client      *huggingface.Client
-	ls          *llamaserver.Manager
+	ls          ServerController
 }
 
 type models struct {
@@ -31,7 +37,7 @@ func NewDownloader(
 	destination string,
 	presetFile string,
 	client *huggingface.Client,
-	ls *llamaserver.Manager,
+	ls ServerController,
 ) (*Downloader, error) {
 	mappingMap := map[string]Info{}
 	presets := map[string]llamaserver.Preset{}
@@ -110,7 +116,9 @@ func (d *Downloader) AddModel(ctx context.Context, info Info) error {
 		return err
 	}
 	if d.ls != nil {
-		d.ls.RestartServer()
+		if err := d.ls.RestartServer(ctx); err != nil {
+			return fmt.Errorf("restart server: %w", err)
+		}
 	}
 	return nil
 }

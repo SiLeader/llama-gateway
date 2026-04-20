@@ -25,7 +25,7 @@ func defaultConfig(targetURL string) (ServerConfig, string) {
 
 func TestNewProxy_ValidURL(t *testing.T) {
 	cfg, url := defaultConfig("http://localhost:8081")
-	p, err := NewProxy(cfg, url, testDownloader())
+	p, err := NewProxy(cfg, url, testDownloader(), nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -37,7 +37,7 @@ func TestNewProxy_ValidURL(t *testing.T) {
 func TestNewProxy_InvalidURL(t *testing.T) {
 	cfg, _ := defaultConfig("")
 	// url.Parse fails on strings containing control characters
-	p, _ := NewProxy(cfg, "http://[::1]:namedport", testDownloader())
+	p, _ := NewProxy(cfg, "http://[::1]:namedport", testDownloader(), nil)
 	if p != nil {
 		t.Errorf("expected nil Proxy for invalid URL, got non-nil")
 	}
@@ -51,7 +51,7 @@ func TestServeHTTP(t *testing.T) {
 	defer backend.Close()
 
 	cfg, _ := defaultConfig(backend.URL)
-	p, err := NewProxy(cfg, backend.URL, testDownloader())
+	p, err := NewProxy(cfg, backend.URL, testDownloader(), nil)
 	if err != nil {
 		t.Fatalf("failed to create proxy: %v", err)
 	}
@@ -86,7 +86,7 @@ func TestServeHTTP_HeaderForwarding(t *testing.T) {
 	defer backend.Close()
 
 	cfg, _ := defaultConfig(backend.URL)
-	p, err := NewProxy(cfg, backend.URL, testDownloader())
+	p, err := NewProxy(cfg, backend.URL, testDownloader(), nil)
 	if err != nil {
 		t.Fatalf("failed to create proxy: %v", err)
 	}
@@ -109,7 +109,7 @@ func proxyWithAdminKey(t *testing.T, targetURL, adminKey string) *Proxy {
 		Apis: api{AddModels: true},
 		Auth: auth{AdminKeyEnv: &envName},
 	}
-	p, err := NewProxy(cfg, targetURL, testDownloader())
+	p, err := NewProxy(cfg, targetURL, testDownloader(), nil)
 	if err != nil {
 		t.Fatalf("NewProxy: %v", err)
 	}
@@ -139,7 +139,7 @@ func TestHandleGatewayApi_Forbidden_WrongKey(t *testing.T) {
 
 func TestHandleGatewayApi_AddModels_Disabled(t *testing.T) {
 	cfg := ServerConfig{Apis: api{AddModels: false}}
-	p, err := NewProxy(cfg, "http://localhost:9999", testDownloader())
+	p, err := NewProxy(cfg, "http://localhost:9999", testDownloader(), nil)
 	if err != nil {
 		t.Fatalf("NewProxy: %v", err)
 	}
@@ -153,7 +153,7 @@ func TestHandleGatewayApi_AddModels_Disabled(t *testing.T) {
 
 func TestHandleGatewayApi_UnknownPath(t *testing.T) {
 	cfg := ServerConfig{Apis: api{AddModels: false}}
-	p, err := NewProxy(cfg, "http://localhost:9999", testDownloader())
+	p, err := NewProxy(cfg, "http://localhost:9999", testDownloader(), nil)
 	if err != nil {
 		t.Fatalf("NewProxy: %v", err)
 	}
@@ -178,7 +178,7 @@ func TestHandleGatewayApi_AddModel_ValidKey(t *testing.T) {
 		Apis: api{AddModels: true},
 		Auth: auth{AdminKeyEnv: &envName},
 	}
-	p, err := NewProxy(cfg, "http://localhost:9999", dl)
+	p, err := NewProxy(cfg, "http://localhost:9999", dl, nil)
 	if err != nil {
 		t.Fatalf("NewProxy: %v", err)
 	}

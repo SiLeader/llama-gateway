@@ -28,6 +28,9 @@ directories:
   config: /var/run/llama-gateway/config
 
 backend:
+  # Specify 2+ ports to enable zero-downtime blue/green rollovers.
+  # With a single port (or no ports), in-place restart is used instead.
+  ports: [8081, 8082]
   llamaServer:
     executable: /opt/llama.cpp/llama-server
     args: ["--embeddings"]
