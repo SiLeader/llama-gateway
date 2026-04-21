@@ -3,7 +3,8 @@ server:
     port: 8080
     host: 0.0.0.0
   apis:
-    addModels: true
+    addModels: false
+    reload: false
 
 models:
 #  - name: gemma4-e4b

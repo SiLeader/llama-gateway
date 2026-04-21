@@ -22,6 +22,7 @@ type listen struct {
 
 type api struct {
 	AddModels bool `yaml:"addModels"`
+	Reload    bool `yaml:"reload"`
 }
 
 func (c *ServerConfig) ListenPort() int {
@@ -58,5 +59,5 @@ func (c *ServerConfig) AdminKey() (string, error) {
 }
 
 func (a *api) IsAdminApiEnabled() bool {
-	return a.AddModels
+	return a.AddModels || a.Reload
 }

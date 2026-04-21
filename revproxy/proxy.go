@@ -160,7 +160,7 @@ func (p *Proxy) handleGatewayApi(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method == http.MethodPost && r.URL.Path == "/gateway/v1/reload" {
-		if p.reloader == nil {
+		if p.reloader == nil || !p.config.Apis.Reload {
 			w.WriteHeader(http.StatusNotFound)
 			w.Write([]byte("Reload is not enabled."))
 			return
